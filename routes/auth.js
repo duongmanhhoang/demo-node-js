@@ -34,12 +34,24 @@ router.post('/register', async (request, response) => {
 
 router.post('/login', async (request, response) => {
     const user = await User.findOne({email: request.body.email});
+
+    if (!user) return response.status(422).send({message: 'Email or Password is not correct'});
+
     const checkPassword = await bcrypt.compare(request.body.password, user.password);
 
-    if (!user || !checkPassword) return response.status(422).send('Email or Password is not correct');
+    if (!checkPassword) return response.status(422).send({message: 'Email or Password is not correct'});
 
-    const token = jwt.sign({_id: user._id}, process.env.TOKEN_SECRET, { expiresIn: 60 * 60 * 30 });
-    response.header('auth-token', token).send(token);
+    const token = await jwt.sign({_id: user._id}, process.env.TOKEN_SECRET, { expiresIn: 60 * 60 * 24 });
+
+    return response.status(200).send({
+        token,
+        user: {
+            _id: user._id,
+            name: user.name,
+            email: user.email
+        },
+        message: 'Login successfully'
+    });
 })
 
 module.exports = router;
