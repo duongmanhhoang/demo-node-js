@@ -14,10 +14,8 @@ router.post('/', verifyToken, (request, response) => {
         response.status(401).send({message: 'Access Denied'});
     }
     const task = new Task({
-        name: request.body.name,
-        tag_id: request.body.tag_id,
-        detail: request.body.detail,
-        assign_to: request.body.assign_to,
+        title: request.body.name,
+        category_id: request.body.category_id,
         created_by: request.userID
     });
     task.save((err, task) => {
