@@ -4,7 +4,8 @@ const Category = require('./../models/Category');
 const router = express.Router();
 
 router.get('/', verifyToken, (request, response) => {
-    Category.find({}).exec(function (err, categories) {
+    const userId = request.userID;
+    Category.find({created_by: userId}).sort('order').exec(function (err, categories) {
         response.send(categories);
     });
 });
