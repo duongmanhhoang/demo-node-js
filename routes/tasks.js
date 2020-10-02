@@ -9,21 +9,22 @@ router.get('/', verifyToken, (request, response) => {
     });
 });
 
-router.post('/', verifyToken, (request, response) => {
+router.post('/', verifyToken, async (request, response) => {
     if(!request.isLoggedIn){
-        response.status(401).send({message: 'Access Denied'});
+        return response.status(401).send({message: 'Access Denied'});
     }
-    const task = new Task({
-        title: request.body.name,
+
+    const task = await new Task({
+        title: request.body.title,
         category_id: request.body.category_id,
         created_by: request.userID
     });
-    task.save((err, task) => {
+    await task.save((err, task) => {
         if(err){
             console.error(err);
             return;
         }
-        response.send(task)
+        return response.status(200).send(task)
     })
 })
 
