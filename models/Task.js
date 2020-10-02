@@ -15,10 +15,10 @@ const TaskSchema = new mongoose.Schema({
         type: String
     },
     assign_to: {
-        type: Number
+        type: String
     },
     created_by: {
-        type: Number,
+        type: String,
         required: true,
     }
 });
