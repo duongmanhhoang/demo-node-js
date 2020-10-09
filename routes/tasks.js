@@ -16,11 +16,21 @@ router.post('/', verifyToken, async (request, response) => {
         return response.status(401).send({message: 'Access Denied'});
     }
 
+    const category = await Category.findOne({_id: request.body.category}).populate('tasks').exec();
+    const tasks = await category.tasks;
+    let nextOrder = 0;
+
+    if (tasks.length) {
+        const orderList = tasks.map(item => item.order).sort();
+        nextOrder = orderList[orderList.length - 1] + 1;
+    }
+
     const task = await new Task({
         _id: new mongoose.Types.ObjectId(),
         title: request.body.title,
         category: request.body.category,
-        created_by: request.userID
+        created_by: request.userID,
+        order: nextOrder
     });
 
     await task.save(async (err, task) => {
@@ -28,8 +38,7 @@ router.post('/', verifyToken, async (request, response) => {
             console.error(err);
             return;
         }
-        const category = await Category.findOne({_id: request.body.category}).exec();
-        const tasks = await category.tasks;
+       
         await tasks.push(task._id);
         await Category.findOneAndUpdate({_id: category._id}, {
             tasks
