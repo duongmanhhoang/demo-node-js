@@ -1,17 +1,23 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const verifyToken = require('./../middlewares/verifyToken');
 const Category = require('./../models/Category');
+const Task = require('./../models/Task');
 const router = express.Router();
 
-router.get('/', verifyToken, (request, response) => {
+router.get('/', verifyToken, async (request, response) => {
     const userId = request.userID;
-    Category.find({created_by: userId}).sort('order').exec(function (err, categories) {
-        response.send(categories);
-    });
+    const data = await Category.find({created_by: userId}).populate({
+        path: 'tasks',
+        model: 'Task'
+    }).sort('order').exec();
+
+    await response.send(data);
 });
 
 router.post('/create', verifyToken, async (request, response) => {
     const category = new Category({
+        _id: new mongoose.Types.ObjectId(),
         title: request.body.title,
         created_by: request.body.created_by,
         order: request.body.order
