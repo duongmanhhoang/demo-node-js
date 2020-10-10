@@ -4,9 +4,9 @@
  - npm install
  - npm start
  
-# How to confix port
+# How to config .env
  - create mongodb
- - create .nv
+ - create .env
  - PORT=6000
  - TOKEN_SECRET=your token
  - DB_CONNECT=link to connect mongodb
