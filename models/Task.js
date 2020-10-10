@@ -13,6 +13,12 @@ const TaskSchema = new Schema({
         type: Schema.Types.ObjectId,
         ref: 'Category'
     },
+    order: {
+        type: Number,
+        required: true,
+        min: 0,
+        default: 0
+    },
     created_by: {
         type: String,
         required: true,
