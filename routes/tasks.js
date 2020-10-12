@@ -12,17 +12,14 @@ router.get('/', verifyToken, (request, response) => {
 });
 
 router.post('/', verifyToken, async (request, response) => {
-    if(!request.isLoggedIn){
-        return response.status(401).send({message: 'Access Denied'});
-    }
-
-    const category = await Category.findOne({_id: request.body.category}).populate('tasks').exec();
+    const category = await Category.findOne({ _id: request.body.category }).populate('tasks').exec();
     const tasks = await category.tasks;
     let nextOrder = 0;
 
     if (tasks.length) {
         const orderList = tasks.map(item => item.order).sort();
-        nextOrder = orderList[orderList.length - 1] + 1;
+        nextOrder = Math.max(Math.max(...orderList)) + 1;
+        console.log(orderList.length, nextOrder);
     }
 
     const task = await new Task({
@@ -34,18 +31,79 @@ router.post('/', verifyToken, async (request, response) => {
     });
 
     await task.save(async (err, task) => {
-        if(err){
+        if (err) {
             console.error(err);
             return;
         }
-       
+
         await tasks.push(task._id);
-        await Category.findOneAndUpdate({_id: category._id}, {
+        await Category.findOneAndUpdate({ _id: category._id }, {
             tasks
         });
 
         return response.status(200).send(task)
     })
 })
+
+router.post('/drag-and-drop', verifyToken, async (request, response) => {
+    const { categoryId, taskId, newIndex } = request.body;
+    const task = await Task.findOne({ _id: taskId }).exec();
+    const oldCategory = await Category.findOne({ _id: task.category }).exec();
+    const newCategory = await Category.findOne({ _id: categoryId }).populate({
+        path: 'tasks',
+        match: {
+            order: { $gte: newIndex },
+            _id: { $ne: taskId }
+        },
+        options: {
+            sort: { 'order': 1 }
+        }
+    }).exec();
+    const newCategoryForAllTasks = await Category.findOne({ _id: categoryId }).populate('tasks').exec();
+    const tasksCategory = newCategory.tasks;
+    await tasksCategory.forEach(async (item) => {
+        const newOrder = item.order + 1;
+        await Task.findOneAndUpdate(
+            { _id: item._id },
+            { order: newOrder }
+        )
+    });
+    await Task.findOneAndUpdate(
+        { _id: taskId },
+        { order: newIndex, category: categoryId }
+    );
+    
+    if (oldCategory._id != newCategory._id) {
+        let oldCategoryTasks = await oldCategory.tasks;
+        oldCategoryTasks = await oldCategoryTasks.filter(item => item != taskId);
+        await Category.findOneAndUpdate(
+            { _id: oldCategory._id },
+            { tasks: oldCategoryTasks }
+        );
+        oldCategoryTasks.forEach(async (item, index) => {
+            await Task.findOneAndUpdate(
+                { _id: item },
+                { order: index }
+            )
+        });
+        const newCategoryTasksId = newCategoryForAllTasks.tasks;
+        await newCategoryTasksId.push(taskId);
+        await Category.findOneAndUpdate(
+            { _id: newCategory._id },
+            { tasks: newCategoryTasksId }
+        );
+    }
+    
+    const categories = await Category.find({ created_by: request.userID }).populate({
+        path: 'tasks',
+        options: { sort: 'order' }
+    }).sort('order').exec();
+
+    return response.send(categories);
+});
+
+const updateWhenMoveSameCategory = () => {
+
+}
 
 module.exports = router;
