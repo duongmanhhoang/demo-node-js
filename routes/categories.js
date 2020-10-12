@@ -9,7 +9,8 @@ router.get('/', verifyToken, async (request, response) => {
     const userId = request.userID;
     const data = await Category.find({created_by: userId}).populate({
         path: 'tasks',
-        model: 'Task'
+        model: 'Task',
+        options: {sort: 'order'}
     }).sort('order').exec();
 
     await response.send(data);
