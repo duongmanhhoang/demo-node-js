@@ -5,6 +5,25 @@ const Task = require('./../models/Task');
 const Category = require('./../models/Category');
 const router = express.Router();
 
+const dragAndDropWhenCategoryChange = async (category, tasks, taskId = null) => {
+    const tasksId = await tasks.map(task => task._id);
+    await Category.findOneAndUpdate({ _id: category._id }, { tasks: tasksId });
+    tasks.forEach(async (task) => {
+        let data = { order: task.order }
+        
+        if (task === taskId) {
+            data = {
+                order: task.order,
+                category: category
+            };
+        }
+        await Task.findOneAndUpdate(
+            { _id: task._id },
+            data
+        );
+    });
+};
+
 router.get('/', verifyToken, (request, response) => {
     Task.find({}).exec(function (err, tasks) {
         response.send(tasks);
@@ -46,52 +65,24 @@ router.post('/', verifyToken, async (request, response) => {
 })
 
 router.post('/drag-and-drop', verifyToken, async (request, response) => {
-    const { categoryId, taskId, newIndex } = request.body;
-    const task = await Task.findOne({ _id: taskId }).exec();
-    const oldCategory = await Category.findOne({ _id: task.category }).exec();
-    const newCategory = await Category.findOne({ _id: categoryId }).populate({
-        path: 'tasks',
-        match: {
-            order: { $gte: newIndex },
-            _id: { $ne: taskId }
-        },
-        options: {
-            sort: { 'order': 1 }
-        }
-    }).exec();
-    const newCategoryForAllTasks = await Category.findOne({ _id: categoryId }).populate('tasks').exec();
-    const tasksCategory = newCategory.tasks;
-    await tasksCategory.forEach(async (item) => {
-        const newOrder = item.order + 1;
-        await Task.findOneAndUpdate(
-            { _id: item._id },
-            { order: newOrder }
-        )
-    });
-    await Task.findOneAndUpdate(
-        { _id: taskId },
-        { order: newIndex, category: categoryId }
-    );
-    
-    if (oldCategory._id != newCategory._id) {
-        let oldCategoryTasks = await oldCategory.tasks;
-        oldCategoryTasks = await oldCategoryTasks.filter(item => item != taskId);
-        await Category.findOneAndUpdate(
-            { _id: oldCategory._id },
-            { tasks: oldCategoryTasks }
-        );
-        oldCategoryTasks.forEach(async (item, index) => {
+    const { currentCategoryId, dropedCategoryId, taskId, newIndex, newCategoriesData } = request.body;
+
+    if (currentCategoryId == dropedCategoryId) {
+        const category = await newCategoriesData.find(item => item._id == currentCategoryId);
+        const { tasks } = category;
+        tasks.forEach(async (task) => {
             await Task.findOneAndUpdate(
-                { _id: item },
-                { order: index }
+                { _id: task._id },
+                { order: task.order }
             )
-        });
-        const newCategoryTasksId = newCategoryForAllTasks.tasks;
-        await newCategoryTasksId.push(taskId);
-        await Category.findOneAndUpdate(
-            { _id: newCategory._id },
-            { tasks: newCategoryTasksId }
-        );
+        })
+    } else {
+        const currentCategory = await newCategoriesData.find(item => item._id == currentCategoryId);
+        const newCategory = await newCategoriesData.find(item => item._id == dropedCategoryId);
+        const currentTasks = currentCategory.tasks;
+        const newTasks = newCategory.tasks;
+        dragAndDropWhenCategoryChange(currentCategory, currentTasks);
+        dragAndDropWhenCategoryChange(newCategory, newTasks, taskId);
     }
     
     const categories = await Category.find({ created_by: request.userID }).populate({
