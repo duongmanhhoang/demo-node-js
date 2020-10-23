@@ -90,11 +90,15 @@ router.post('/drag-and-drop', verifyToken, async (request, response) => {
         options: { sort: 'order' }
     }).sort('order').exec();
 
-    return response.send(categories);
+    return response.status(200).send(categories);
 });
 
-const updateWhenMoveSameCategory = () => {
+router.post('/update/:id', verifyToken, async (request, response) => {
+    const { id } = request.params;
+    await Task.findByIdAndUpdate(id, { title: request.body.title });
+    const task = await Task.findById(id);
 
-}
+    return response.status(200).send(task);
+});
 
 module.exports = router;
